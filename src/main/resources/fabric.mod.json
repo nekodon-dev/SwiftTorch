@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "swifttorch",
+  "version": "${version}",
+  "name": "SwiftTorch",
+  "description": "Right-click with a pickaxe while carrying a torch to place the torch automatically.",
+  "authors": [
+    "Nekodon"
+  ],
+  "contact": {},
+  "license": "CC0-1.0",
+  "icon": "assets/swifttorch/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.nekodon.swifttorch.SwiftTorch"
+    ],
+    "client": [
+      "com.nekodon.swifttorch.SwiftTorchClient"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_version}",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
