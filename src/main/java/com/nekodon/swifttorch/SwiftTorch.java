@@ -2,6 +2,8 @@ package com.nekodon.swifttorch;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
@@ -12,6 +14,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import org.slf4j.Logger;
@@ -72,6 +75,18 @@ public class SwiftTorch implements ModInitializer {
 
         if (placementResult.consumesAction()) {
             player.swing(hand, true);
+
+            BlockState placedState = level.getBlockState(placementContext.getClickedPos());
+            SoundType soundType = placedState.getSoundType();
+            SoundEvent placeSound = soundType.getPlaceSound();
+            level.playSound(
+                    null,
+                    placementContext.getClickedPos(),
+                    placeSound,
+                    SoundSource.BLOCKS,
+                    (soundType.getVolume() + 1.0F) / 2.0F,
+                    soundType.getPitch() * 0.8F
+            );
         }
 
         return placementResult;
