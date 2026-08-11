@@ -2,20 +2,18 @@ package com.nekodon.swifttorch;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.ItemPlacementContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.registry.tag.ItemTags;
-import net.minecraft.sound.SoundCategory;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.Hand;
-import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.world.World;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.BlockHitResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,85 +28,63 @@ public class SwiftTorch implements ModInitializer {
         UseBlockCallback.EVENT.register(this::onBlockRightClick);
     }
 
-    /**
-     * ブロックが右クリックされた時に呼び出されるメソッド（修正済み）
-     */
-    private ActionResult onBlockRightClick(PlayerEntity player, World world, Hand hand, BlockHitResult hitResult) {
-
-        // サーバー側、かつメインハンドでのみ実行
-        if (world.isClient() || hand != Hand.MAIN_HAND) {
-            return ActionResult.PASS;
+    private InteractionResult onBlockRightClick(
+            Player player,
+            Level level,
+            InteractionHand hand,
+            BlockHitResult hitResult
+    ) {
+        if (level.isClientSide() || hand != InteractionHand.MAIN_HAND) {
+            return InteractionResult.PASS;
         }
 
-        // スニーク中はMODの機能を完全にオフにする（バニラの「チェストにブロックを置く」動作などを優先）
-        if (player.isSneaking()) {
-            return ActionResult.PASS;
+        // Sneaking keeps the vanilla interaction available to the player.
+        if (player.isShiftKeyDown()) {
+            return InteractionResult.PASS;
         }
 
-        // メインハンドがツルハシかチェック
-        ItemStack mainHandStack = player.getStackInHand(Hand.MAIN_HAND);
-        if (!mainHandStack.isIn(ItemTags.PICKAXES)) {
-            return ActionResult.PASS;
+        ItemStack toolStack = player.getItemInHand(InteractionHand.MAIN_HAND);
+        if (!toolStack.getItem().builtInRegistryHolder().is(ItemTags.PICKAXES)) {
+            return InteractionResult.PASS;
         }
 
-        // インベントリにトーチがあるかチェック
-        int torchSlot = findTorchInInventory(player.getInventory());
-        if (torchSlot == -1) {
-            return ActionResult.PASS;
+        Inventory inventory = player.getInventory();
+        int torchSlot = findTorchInInventory(inventory);
+        if (torchSlot == Inventory.NOT_FOUND_INDEX) {
+            return InteractionResult.PASS;
         }
 
-        BlockState clickedBlockState = world.getBlockState(hitResult.getBlockPos());
+        BlockState clickedState = level.getBlockState(hitResult.getBlockPos());
+        InteractionResult itemResult = clickedState.useItemOn(toolStack, level, player, hand, hitResult);
 
-        // --- 【1.21.4専用：チェストやギミックの判定】 ---
-
-        // 1. アイテム（ツルハシ）を持ってブロックを触った時の判定
-        // 最新の1.21.4では、ここも ActionResult を返します
-        ActionResult itemResult = clickedBlockState.onUseWithItem(player.getStackInHand(hand), world, player, hand, hitResult);
-        if (itemResult.isAccepted()) {
-            return itemResult; // そのまま結果を返す
+        if (itemResult == InteractionResult.TRY_WITH_EMPTY_HAND) {
+            InteractionResult blockResult = clickedState.useWithoutItem(level, player, hitResult);
+            if (blockResult != InteractionResult.PASS) {
+                return blockResult;
+            }
+        } else if (itemResult != InteractionResult.PASS) {
+            return itemResult;
         }
 
-        // 2. ブロック自体の機能（チェスト、ドアなど）の判定
-        // 引数が3つの onUse メソッドを使います
-        ActionResult blockResult = clickedBlockState.onUse(world, player, hitResult);
-        if (blockResult.isAccepted()) {
-            return blockResult;
+        ItemStack torchStack = inventory.getItem(torchSlot);
+        BlockPlaceContext placementContext = new BlockPlaceContext(player, hand, torchStack, hitResult);
+        InteractionResult placementResult = ((BlockItem) Items.TORCH).place(placementContext);
+
+        if (placementResult.consumesAction()) {
+            player.swing(hand, true);
         }
 
-        // --- ここまでで何も発動しなかった場合（ただの石など）、トーチを設置する ---
-
-        ItemStack torchStack = player.getInventory().getStack(torchSlot);
-        ItemPlacementContext placementContext = new ItemPlacementContext(player, hand, torchStack, hitResult);
-
-        // トーチを設置
-        ActionResult placeResult = ((BlockItem) Items.TORCH).place(placementContext);
-
-        if (placeResult.isAccepted()) {
-            // 腕振りの実行
-            player.swingHand(hand, true);
-
-            // 音の再生
-            BlockState placedState = world.getBlockState(placementContext.getBlockPos());
-            SoundEvent sound = placedState.getSoundGroup().getPlaceSound();
-            world.playSound(null, placementContext.getBlockPos(), sound, SoundCategory.BLOCKS, 1.0f, 1.0f);
-
-            return ActionResult.SUCCESS;
-        }
-
-        return ActionResult.PASS;
+        return placementResult;
     }
 
-    /**
-     * プレイヤーのインベントリをスキャンしてトーチを探すヘルパーメソッド
-     * (この部分は変更ありません)
-     */
-    private int findTorchInInventory(PlayerInventory inventory) {
-        for (int i = 0; i < inventory.main.size(); i++) {
-            ItemStack stack = inventory.main.get(i);
+    private int findTorchInInventory(Inventory inventory) {
+        for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
             if (!stack.isEmpty() && stack.getItem() == Items.TORCH) {
-                return i;
+                return slot;
             }
         }
-        return -1;
+
+        return Inventory.NOT_FOUND_INDEX;
     }
 }
