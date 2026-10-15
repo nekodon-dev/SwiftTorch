@@ -5,10 +5,14 @@
   "name": "SwiftTorch",
   "description": "Right-click with a pickaxe while carrying a torch to place the torch automatically.",
   "authors": [
-    "Nekodon"
+    "nekodon"
   ],
-  "contact": {},
-  "license": "CC0-1.0",
+  "contact": {
+    "homepage": "https://modrinth.com/mod/swifttorch",
+    "sources": "https://github.com/nekodon-dev/SwiftTorch",
+    "issues": "https://github.com/nekodon-dev/SwiftTorch/issues"
+  },
+  "license": "MIT",
   "icon": "assets/swifttorch/icon.png",
   "environment": "*",
   "entrypoints": {
