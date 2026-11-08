@@ -1,4 +1,4 @@
-# SwiftTorch — Fabric 26.1
+# SwiftTorch — Fabric 26.1.1
 
 Author: `nekodon`
 
@@ -20,7 +20,7 @@ Items held in the offhand are not used or consumed when SwiftTorch places a torc
 
 ### Requirements
 
-- Minecraft 26.1
+- Minecraft 26.1.1
 - Fabric Loader 0.20.1 or newer
 - Fabric API
 - Java 25
@@ -53,7 +53,7 @@ SwiftTorchによる松明設置時に、オフハンドのアイテムが使用�
 
 ### 必要環境
 
-- Minecraft 26.1
+- Minecraft 26.1.1
 - Fabric Loader 0.20.1以上
 - Fabric API
 - Java 25
